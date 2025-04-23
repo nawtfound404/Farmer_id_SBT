@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;  // Update to the latest stable version
+pragma solidity ^0.8.27;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
 contract SoulBoundFarmerNFT is ERC721 {
     uint256 private farmerIdCounter;
     address private _owner;
-
     mapping(uint256 => bool) private _soulBoundTokens;
     mapping(uint256 => bool) private _farmerExists;
 
@@ -22,13 +21,6 @@ contract SoulBoundFarmerNFT is ERC721 {
         string governmentSignature;
         string location;
         address owner;
-        string aadhaarHash;
-        string cropType;
-        string documentHash;
-        bool isRevoked;
-        uint256 updatedAt;
-        address mintedBy;
-        uint256 metadataVersion;
     }
 
     Farmer[] public allFarmers;
@@ -45,6 +37,7 @@ contract SoulBoundFarmerNFT is ERC721 {
         _owner = msg.sender;
     }
 
+    // Mint a new soul-bound NFT for a farmer
     function mintFarmerNFT(
         address recipient,
         string memory subsidyType,
@@ -55,11 +48,8 @@ contract SoulBoundFarmerNFT is ERC721 {
         string memory usageStatus,
         string memory farmerSignature,
         string memory governmentSignature,
-        string memory location,
-        string memory aadhaarHash,
-        string memory cropType,
-        string memory documentHash
-    ) public onlyOwner returns (uint256) {
+        string memory location
+    ) public returns (uint256) {
         uint256 newFarmerId = farmerIdCounter++;
         _mint(recipient, newFarmerId);
         _farmerExists[newFarmerId] = true;
@@ -75,14 +65,7 @@ contract SoulBoundFarmerNFT is ERC721 {
             farmerSignature: farmerSignature,
             governmentSignature: governmentSignature,
             location: location,
-            owner: recipient,
-            aadhaarHash: aadhaarHash,
-            cropType: cropType,
-            documentHash: documentHash,
-            isRevoked: false,
-            updatedAt: block.timestamp,
-            mintedBy: msg.sender,
-            metadataVersion: 1
+            owner: recipient
         });
 
         allFarmers.push(newFarmer);
@@ -94,44 +77,43 @@ contract SoulBoundFarmerNFT is ERC721 {
         return newFarmerId;
     }
 
+    // Fetch details of a specific Farmer NFT by farmerId
     function getFarmerNFT(uint256 farmerId) public view returns (Farmer memory) {
         require(_farmerExists[farmerId], "Farmer does not exist");
         return allFarmers[farmerId];
     }
 
+    // Simulate downloading data as a string for a specific farmerId
     function downloadFarmerNFTData(uint256 farmerId) public view returns (string memory) {
+        require(_farmerExists[farmerId], "Farmer does not exist");
+
         Farmer memory farmer = allFarmers[farmerId];
 
-        // Create an array of fields to store each individual piece of information.
-        string ;
-        fields[0] = "Farmer ID: ";
-        fields[1] = uint2str(farmer.farmerId);
-        fields[2] = ", Subsidy Type: ";
-        fields[3] = farmer.subsidyType;
-        fields[4] = ", Subsidy Amount: ";
-        fields[5] = uint2str(farmer.subsidyAmount);
-        fields[6] = ", Issue Date: ";
-        fields[7] = uint2str(farmer.issueDate);
-        fields[8] = ", Validity Period: ";
-        fields[9] = uint2str(farmer.validityPeriod);
-        fields[10] = ", Government Approval ID: ";
-        fields[11] = farmer.governmentApprovalId;
-        fields[12] = ", Usage Status: ";
-        fields[13] = farmer.usageStatus;
-        fields[14] = ", Location: ";
-        fields[15] = farmer.location;
-
-        return getFieldsString(fields);
+        // Create a string with the farmer details to simulate download
+        return string(
+            abi.encodePacked(
+                "Farmer ID: ", uint2str(farmer.farmerId), 
+                ", Subsidy Type: ", farmer.subsidyType,
+                ", Subsidy Amount: ", uint2str(farmer.subsidyAmount),
+                ", Issue Date: ", uint2str(farmer.issueDate),
+                ", Validity Period: ", uint2str(farmer.validityPeriod),
+                ", Government Approval ID: ", farmer.governmentApprovalId,
+                ", Usage Status: ", farmer.usageStatus,
+                ", Farmer Signature: ", farmer.farmerSignature,
+                ", Government Signature: ", farmer.governmentSignature,
+                ", Location: ", farmer.location,
+                ", Owner: ", toAsciiString(farmer.owner)
+            )
+        );
     }
 
-    function getFieldsString(string[] memory _fields) internal pure returns (string memory str) {
-        string memory result = "";
-        for (uint i = 0; i < _fields.length; i++) {
-            result = string(abi.encodePacked(result, _fields[i]));
-        }
-        return result;
+    // Custom transfer function, preventing soul-bound NFT transfers
+    function customTransfer(address from, address to, uint256 farmerId) public {
+        require(!_soulBoundTokens[farmerId], "This token is soul-bound and cannot be transferred.");
+        transferFrom(from, to, farmerId);
     }
 
+    // Helper function to convert uint to string
     function uint2str(uint256 _i) internal pure returns (string memory _uintAsString) {
         if (_i == 0) return "0";
         uint256 j = _i;
@@ -144,9 +126,31 @@ contract SoulBoundFarmerNFT is ERC721 {
         uint256 k = len;
         while (_i != 0) {
             k = k - 1;
-            bstr[k] = bytes1(uint8(48 + _i % 10));
+            uint8 temp = (48 + uint8(_i - _i / 10 * 10));
+            bytes1 b1 = bytes1(temp);
+            bstr[k] = b1;
             _i /= 10;
         }
         return string(bstr);
+    }
+
+    // Helper function to convert address to ASCII string
+    function toAsciiString(address x) internal pure returns (string memory) {
+        bytes memory s = new bytes(42);
+        s[0] = '0';
+        s[1] = 'x';
+        for (uint256 i = 0; i < 20; i++) {
+            bytes1 b = bytes1(uint8(uint160(x) / (2**(8*(19 - i)))));
+            bytes1 hi = bytes1(uint8(b) / 16);
+            bytes1 lo = bytes1(uint8(b) - 16 * uint8(hi));
+            s[2*i + 2] = char(hi);
+            s[2*i + 3] = char(lo);
+        }
+        return string(s);
+    }
+
+    function char(bytes1 b) internal pure returns (bytes1 c) {
+        if (uint8(b) < 10) return bytes1(uint8(b) + 0x30);
+        else return bytes1(uint8(b) + 0x57);
     }
 }

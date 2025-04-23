@@ -1,0 +1,3 @@
+SoulBoundFarmerNFTTest:testDownloadFarmerNFTData() (gas: 654797)
+SoulBoundFarmerNFTTest:testMintFarmerNFT() (gas: 638529)
+SoulBoundFarmerNFTTest:testSoulBoundTransferFails() (gas: 629299)
